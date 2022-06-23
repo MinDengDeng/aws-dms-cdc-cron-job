@@ -7,18 +7,6 @@ Parameters:
     Default: ''
     Description: 'the list of the full load task, seperated with ,'
 
-  ScheduledTime:
-    Type: String
-    Default: 'cron(0 12 * * ? *)'
-    AllowedValues:
-      - 'cron(0 12 * * ? *)'
-      - 'every day 0 am '
-      - 'every 1 hour'
-      - 'every 12 hours'
-      - 'every 24 hours'
-    Description: 'the time of the recurred event: cron(0 12 * * ? *) 
-                  Sample: '
-
   LambdaDMSCronJobFunctionName:
     Type: String
     Description: Name of the lambda function
@@ -38,6 +26,31 @@ Parameters:
     Type: String
     Description: IAM customed managed policy
     Default: aws-dms-cronjob-policy
+
+  DynamoDBHistoryTableName:
+    Type: String
+    Description: dynamodb to store the history of replication tasks
+    Default: aws-dms-cronjob-history
+
+  ScheduledTime:
+    Type: String
+    Default: 00:00am every day
+    AllowedValues:
+     # - '00:00am every day | cron(0 0 * * ? *)'
+     # - '12:00pm every day | cron(0 12 * * ? *)'
+     # - 'every 12 hours | rate(12 hours)'
+     # - 'every 24 hours | rate(1 day)'
+      - '00:00am every day'
+      - '12:00pm every day'
+      - 'every 12 hours'
+      - 'every 24 hours'
+    Description: 'refers to: https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-create-rule-schedule.html'
+
+Conditions:
+  00EVERYDAY: !Equals [!Ref ScheduledTime, '00:00am every day']
+  12EVERYDAY: !Equals [!Ref ScheduledTime, '12:00pm every day']
+  EVERY12H: !Equals [!Ref ScheduledTime, 'every 12 hours']
+  EVERY24H: !Equals [!Ref ScheduledTime, 'every 24 hours']
 
 Resources:
   # Lambda functions resources
@@ -138,7 +151,8 @@ Resources:
     Properties:
       Description: Rules to filtering events
       Name: !Ref EventBridgeScheduledEventName
-      ScheduleExpression: !Ref ScheduledTime
+      #ScheduleExpression: !Ref ScheduledTime
+      ScheduleExpression: !If [00EVERYDAY, 'cron(0 0 * * ? *)', !If [12EVERYDAY, 'cron(0 12 * * ? *)', !If [EVERY12H, 'rate(12 hours)', !If [EVERY24H, 'rate(1 day)', 'cron(0 0 * * ? *)']]]]  
       Targets: 
         - Arn: !GetAtt LambdaDMSCronJob.Arn 
           Id: !Ref LambdaDMSCronJobFunctionName
@@ -150,3 +164,29 @@ Resources:
       Action: "lambda:InvokeFunction"
       Principal: "events.amazonaws.com"
       SourceArn: !GetAtt EventBridgeScheduledEvent.Arn 
+
+  DynamoDbHistoryTable: 
+    Type: AWS::DynamoDB::Table
+    Properties: 
+      TableName: !Ref DynamoDBHistoryTableName
+      AttributeDefinitions: 
+        - AttributeName: "taskArn"
+          AttributeType: "S"
+        - AttributeName: "taskID"
+          AttributeType: "S"
+      KeySchema: 
+        - AttributeName: "taskArn"
+          KeyType: "S"
+      ProvisionedThroughput: 
+        ReadCapacityUnits: "5"
+        WriteCapacityUnits: "5"
+      GlobalSecondaryIndexes:
+        - IndexName: scheduledTime
+          KeySchema:
+            - AttributeName: scheduledTime
+              KeyType: "S"
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: "5"
+            WriteCapacityUnits: "5"
