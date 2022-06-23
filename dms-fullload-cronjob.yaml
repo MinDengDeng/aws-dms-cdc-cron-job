@@ -174,9 +174,11 @@ Resources:
           AttributeType: "S"
         - AttributeName: "taskID"
           AttributeType: "S"
+        - AttributeName: "scheduledTime"
+          AttributeType: "S"
       KeySchema: 
         - AttributeName: "taskArn"
-          KeyType: "S"
+          KeyType: "HASH"
       ProvisionedThroughput: 
         ReadCapacityUnits: "5"
         WriteCapacityUnits: "5"
@@ -184,7 +186,7 @@ Resources:
         - IndexName: scheduledTime
           KeySchema:
             - AttributeName: scheduledTime
-              KeyType: "S"
+              KeyType: "HASH"
           Projection:
             ProjectionType: ALL
           ProvisionedThroughput:
