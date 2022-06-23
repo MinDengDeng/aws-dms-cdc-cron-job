@@ -1,0 +1,40 @@
+{
+    "TableCount": "1",
+    "Tables": [
+        {
+            "TableName": "Enumeration",
+            "TablePath": "dbo/Enumeration/",
+            "TableOwner": "dbo",
+            "TableColumns": [
+                {
+                    "ColumnName": "Enum_UID",
+                    "ColumnType": "INT8",
+                    "ColumnNullable": "true"
+                },
+                {
+                    "ColumnName": "Enum_Type",
+                    "ColumnType": "STRING",
+                    "ColumnLength": "200"
+                },
+                {
+                    "ColumnName": "Enum_Name",
+                    "ColumnType": "STRING",
+                    "ColumnLength": "300",
+                    "ColumnNullable": "true"
+                },
+                {
+                    "ColumnName": "Enum_Value",
+                    "ColumnType": "STRING",
+                    "ColumnLength": "500"
+                },
+                {
+                    "ColumnName": "Decription",
+                    "ColumnType": "STRING",
+                    "ColumnLength": "2000",
+                    "ColumnNullable": "true"
+                }
+            ],
+            "TableColumnsTotal": "5"
+        }
+    ]
+}

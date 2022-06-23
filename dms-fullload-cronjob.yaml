@@ -5,12 +5,19 @@ Parameters:
   DMSTaskArn:
     Type: String
     Default: ''
-    Description: 'the list of the full load task'
+    Description: 'the list of the full load task, seperated with ,'
 
   ScheduledTime:
     Type: String
     Default: 'cron(0 12 * * ? *)'
-    Description: 'the time of the recurred event: cron(0 12 * * ? *)'
+    AllowedValues:
+      - 'cron(0 12 * * ? *)'
+      - 'every day 0 am '
+      - 'every 1 hour'
+      - 'every 12 hours'
+      - 'every 24 hours'
+    Description: 'the time of the recurred event: cron(0 12 * * ? *) 
+                  Sample: '
 
   LambdaDMSCronJobFunctionName:
     Type: String
@@ -70,15 +77,56 @@ Resources:
       Role: !GetAtt LambdaExecutionRole.Arn 
       Code:
         ZipFile: |
-              import boto3
               import json
+              import boto3
+              import os
+
+              def lambda_handler(event, context):
+                  print("Cron job trigger")
+                  # print time and trigger type
+
+                  _dms_tasks_list = os.environ['dms_tasks'].split(',')
+
+                  client = boto3.client('dms')
+                  for _task in _dms_tasks_list:
+                      # retrieve the replication task's status
+                      _task = _task.strip()
+                      _replication_task = client.describe_replication_tasks(
+                              Filters=[
+                                  {
+                                      'Name': 'replication-task-arn',
+                                      'Values': [_task]
+                                  },
+                              ],
+                              WithoutSettings=True|False
+                      )
+                      _load_type = _replication_task['ReplicationTasks'][0]['MigrationType']
+                      _status = _replication_task['ReplicationTasks'][0]['Status']
+                      print(_task)
+                      print(_load_type)
+                      print(_status)
+                      if _load_type != 'full-load':
+                          continue
+                      if _status == 'ready':
+                          response = client.start_replication_task(
+                              ReplicationTaskArn=_task,
+                              StartReplicationTaskType='start-replication'
+                          )
+                      elif _status == 'stopped':
+                          response = client.start_replication_task(
+                              ReplicationTaskArn=_task,
+                              StartReplicationTaskType='reload-target'
+                          )
+                      else:
+                          continue
 
                   return {
                       'statusCode': 200,
-                      'body': json.dumps('Finished map tagging with ' + event['source'])
+                      'body': json.dumps('StartReplicationTask Successfully!')
                   }
+
       FunctionName: !Ref LambdaDMSCronJobFunctionName
-      Handler: index.main
+      Handler: index.lambda_handler
       Runtime: python3.8
       Timeout: 300
       Environment:
