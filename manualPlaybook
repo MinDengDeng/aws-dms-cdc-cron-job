@@ -1,0 +1,28 @@
+1. 创建lambda函数 - event-bridge-schedule-event-lambda
+    A。IAM role 配置
+2. 创建eventbridge - scheduled job 
+    A。 target 是 lambda函数
+3. 准备S3 source数据 - dms-cdc-migration-cronjob
+4. DMS 操作
+    A。 创建s3 source endpoint - cron-job-s3-source-endpoint
+        1. IAM role 权限 - cron-job-s3-source-endpoint-role
+            {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Action": [
+                            "s3:Get*",
+                            "s3:List*",
+                            "s3-object-lambda:Get*",
+                            "s3-object-lambda:List*"
+                        ],
+                        "Resource": "*"
+                    }
+                ]
+            }
+            2. 指定S3 bucket
+    B。 创建RDS MySQL target endpoint // IAM role 权限
+    C。 创建Replication instance // test connection
+5. Lambda函数代码
+    A。 开启CDC replication job

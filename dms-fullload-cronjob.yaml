@@ -1,0 +1,104 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Create dms full load cronjob using eventbridge and lambda
+
+Parameters:
+  DMSTaskArn:
+    Type: String
+    Default: ''
+    Description: 'the list of the full load task'
+
+  ScheduledTime:
+    Type: String
+    Default: 'cron(0 12 * * ? *)'
+    Description: 'the time of the recurred event: cron(0 12 * * ? *)'
+
+  LambdaDMSCronJobFunctionName:
+    Type: String
+    Description: Name of the lambda function
+    Default: aws-dms-cronjob-function
+
+  EventBridgeScheduledEventName:
+    Type: String
+    Description: Name of the EventBridge Rules
+    Default: aws-dms-cronjob-event-name
+
+  IAMDMSCronJobRoleName:
+    Type: String
+    Description: IAM role name for lambda
+    Default: aws-dms-cronjob-role
+
+  IAMDMSCronJobPolicyName:
+    Type: String
+    Description: IAM customed managed policy
+    Default: aws-dms-cronjob-policy
+
+Resources:
+  # Lambda functions resources
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Policies:
+        - PolicyName: !Ref IAMDMSCronJobPolicyName
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  # DMS permissions
+                  - 'dms:StartReplicationTask'
+                  - 'dms:DescribeReplicationTasks'
+
+                  # CloudWatch permissions
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+
+                Resource: '*'
+
+  LambdaDMSCronJob:
+    Type: AWS::Lambda::Function
+    Properties:
+      Role: !GetAtt LambdaExecutionRole.Arn 
+      Code:
+        ZipFile: |
+              import boto3
+              import json
+
+                  return {
+                      'statusCode': 200,
+                      'body': json.dumps('Finished map tagging with ' + event['source'])
+                  }
+      FunctionName: !Ref LambdaDMSCronJobFunctionName
+      Handler: index.main
+      Runtime: python3.8
+      Timeout: 300
+      Environment:
+        Variables:
+          dms_tasks: !Ref DMSTaskArn
+      
+  EventBridgeScheduledEvent:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Rules to filtering events
+      Name: !Ref EventBridgeScheduledEventName
+      ScheduleExpression: !Ref ScheduledTime
+      Targets: 
+        - Arn: !GetAtt LambdaDMSCronJob.Arn 
+          Id: !Ref LambdaDMSCronJobFunctionName
+
+  PermissionForEventsToInvokeLambda: 
+    Type: AWS::Lambda::Permission
+    Properties: 
+      FunctionName: !Ref "LambdaDMSCronJobFunctionName"
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: !GetAtt EventBridgeScheduledEvent.Arn 
