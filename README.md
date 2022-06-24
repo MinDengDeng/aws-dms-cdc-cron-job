@@ -1,4 +1,4 @@
-# aws-dms-cdc-cron-job
+# aws-dms-full-load-cron-job
 
 This solution can create dms cron job to trigger scheduled full-load dms tasks.
 
