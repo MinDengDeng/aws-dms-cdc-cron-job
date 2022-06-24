@@ -172,8 +172,6 @@ Resources:
       AttributeDefinitions: 
         - AttributeName: "taskArn"
           AttributeType: "S"
-        - AttributeName: "taskID"
-          AttributeType: "S"
         - AttributeName: "scheduledTime"
           AttributeType: "S"
       KeySchema: 
@@ -192,3 +190,7 @@ Resources:
           ProvisionedThroughput:
             ReadCapacityUnits: "5"
             WriteCapacityUnits: "5"
+
+
+
+            
